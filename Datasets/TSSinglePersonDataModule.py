@@ -8,7 +8,7 @@ import random
 mpl.use('TkAgg')
 
 from Datasets.NVGazeMonocularDataset import NVGazeMonocularDataset
-from Datasets.VRGazeSinglePersonDataset import TSSinglePersonDataset
+from Datasets.VRGazeSinglePersonDataset import VRGazeSinglePersonDataset
 import os
 import pandas as pd
 import glob

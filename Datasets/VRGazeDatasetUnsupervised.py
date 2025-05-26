@@ -25,6 +25,11 @@ class VRGazeDatasetUnsupervised(Dataset):
         self.args = args
         self.root_dir = data_dir_root
         self.labels = labels
+
+        self.groups = dict(tuple(labels.groupby(['person_id'])))
+        self.group_keys = list(self.groups.keys())
+        self.group_keys = [key for key in self.group_keys if len(self.groups[key]) >= 2]
+        self.rng = random.Random(41)
         self.to_tensor = torchvision.transforms.ToTensor()
 
         #self.normalize = torchvision.transforms.Normalize(0.25,0.15)
@@ -268,6 +273,35 @@ class VRGazeDatasetUnsupervised(Dataset):
         return N
 
     def __getitem__(self, idx):
+
+        # Randomly select a group
+        group_key = random.choice(self.group_keys)
+        group_df = self.groups[group_key]
+
+        # Sample 2 distinct rows from the group
+        samples = group_df.sample(n=2, replace=False)
+        sample_1, sample_2 = samples.iloc[0], samples.iloc[1]
+
+        image_l_1 = os.path.join(self.root_dir, 'train',sample_1['image_l'])
+        image_r_1 = os.path.join(self.root_dir, 'train',sample_1['image_r'])
+        image_l_2 = os.path.join(self.root_dir, 'train',sample_2['image_l'])
+        image_r_2 = os.path.join(self.root_dir, 'train',sample_2['image_r'])
+
+        pil_image_l_1 = self.transform(ImageOps.grayscale(Image.open(image_l_1)))
+        pil_image_r_1 = self.transform(ImageOps.grayscale(Image.open(image_r_1)))
+        pil_image_l_2 = self.transform(ImageOps.grayscale(Image.open(image_l_2)))
+        pil_image_r_2 = self.transform(ImageOps.grayscale(Image.open(image_r_2)))
+        #img_path = torch.tensor(img_path)
+
+        label = self.labels.iloc[idx]
+        gt = torch.tensor(0)
+        dict_label = label.to_dict()
+
+        return gt, pil_image_l_1, pil_image_r_1, pil_image_l_2, pil_image_r_2, dict_label
+
+
+    def __getitem__orig(self, idx):
+
 
         if self.stage == 'predict':
             img_path_left = self.image_files_left[idx]

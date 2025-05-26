@@ -167,8 +167,6 @@ class VRGazeDataModuleUnsupervised(pl.LightningDataModule):
 
         if args.batch_per_person:
             self.per_person_batch_train_sampler = PerPersonBatchSampler(self.training_set_ssl, self.hparams.args.train_batch_size)
-            # self.per_person_batch_val_ssl_sampler = PerPersonBatchSampler(self.validation_set_ssl,
-            #                                                             self.hparams.args.val_batch_size)
 
         # self.per_person_batch_val_supervised_sampler = PerPersonBatchSampler(self.validation_set_supervised,
         #                                                                      self.hparams.args.val_batch_size)
