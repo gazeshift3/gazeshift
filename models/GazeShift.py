@@ -769,8 +769,8 @@ class GazeShift(LightningModule):
     def training_validation_step_supervised(self, x):
         gaze_labels, left_images, right_images, label = x
 
-        gaze_left, left_eyeid = self.variational_embedding_att(left_images, is_left=True)
-        gaze_right, right_eyeid = self.variational_embedding_att(right_images, is_left=False)
+        gaze_left, left_eyeid = self.variational_embedding_att(left_images)
+        gaze_right, right_eyeid = self.variational_embedding_att(right_images)
 
         z_dim = gaze_left.shape[1]
         #gaze_dim = 5
