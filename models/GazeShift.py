@@ -715,8 +715,8 @@ class GazeShift(LightningModule):
         self.pos_enc_2d = PositionalEncoding2D(C=d_model, N=10)
         self.att = TransformerDecoder(
             d_model=d_model,
-            nhead=4,
-            num_layers=4,
+            nhead=8,
+            num_layers=8,
             dim_feedforward=128,
             dropout=0.0
         )
