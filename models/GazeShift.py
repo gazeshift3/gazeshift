@@ -380,8 +380,8 @@ class TransformerDecoder(nn.Module):
                 memory_key_padding_mask=memory_key_padding_mask
             )
             att_maps.append(layer.att_maps.unsqueeze(1))
-
-        att_maps = torch.cat(att_maps).mean(dim=1)
+        att_maps = torch.cat(att_maps, dim=1).mean(dim=1)
+        #att_maps = torch.cat(att_maps).mean(dim=1)
         #output = output + tgt
         #output = output.reshape(output.shape[0], -1)
         #output = self.reduce_linear(output).unsqueeze(1)
