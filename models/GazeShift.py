@@ -225,7 +225,7 @@ class TransformerDecoderLayer(nn.Module):
 
         #plt.imshow(sa_att_weights[0, 0, :].cpu().detach().reshape(10, 10).numpy(), cmap='gray')
         #self.att_maps = sa_att_weights.detach().sum(dim=1)
-        self.att_maps = sa_att_weights.sum(dim=1)
+        self.att_maps = sa_att_weights.detach().sum(dim=1)
         # Residual connection + layer normalization
         tgt = tgt + self.dropout(x2)
         # tgt = tgt + self.dropout(x2)
