@@ -150,24 +150,11 @@ def main(args):
     my_loggers = [csv_logger]
     use_neptune = True
     exp_name = os.path.basename(output_path)
-    if use_wandb and use_neptune:
-
-        neptune_logger = NeptuneLogger(
-            project="samsung/sgaze",
-            api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vbmVwdHVuZS1zcnYudHJhbnNjaGlwLmNvbSIsImFwaV91cmwiOiJodHRwczovL25lcHR1bmUtc3J2LnRyYW5zY2hpcC5jb20iLCJhcGlfa2V5IjoiNmFiNDU5OTgtZTY3Mi00YzMwLThlNmMtOWVhZTRjMDgyYmM0In0=",
-            name=exp_name
-        )
-        my_loggers.append(neptune_logger)
-        # neptune_logger = NeptuneLogger(
-        #     project="samsung/sgaze",
-        #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vbmVwdHVuZS1zcnYudHJhbnNjaGlwLmNvbSIsImFwaV91cmwiOiJodHRwczovL25lcHR1bmUtc3J2LnRyYW5zY2hpcC5jb20iLCJhcGlfa2V5IjoiNmFiNDU5OTgtZTY3Mi00YzMwLThlNmMtOWVhZTRjMDgyYmM0In0=",,
-        #     tags=[exp_name])
 
     if use_wandb:
 
         wandb_logger = WandbLogger(project='sgaze', entity=args.wandb_entity, config=args, name=exp_name,
-                               id=exp_name,
-                               save_dir='/home/gilsh/Gaze/sgaze/experiments/wandb', save_code=True)
+                               id=exp_name,save_code=True)
         my_loggers.append(wandb_logger)
 
     ckpt_path = args.ckpt_path if args.ckpt_path else None

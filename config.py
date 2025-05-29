@@ -150,7 +150,7 @@ def get_args(parser):
 
     parser.add_argument('--wandb', action='store_true', help='wandb logging')
     parser.add_argument('--dump_output', action='store_true', help='wandb logging')
-    parser.add_argument('--wandb_entity', default='gil-shapira', help='wandb entity')
+    parser.add_argument('--wandb_entity', help='wandb entity')
     parser.add_argument('--merge_test_train', action='store_true', help='merge train and test')
 
     parser.add_argument('--channels', default=1, type=int, help='number of channels in the input image')

@@ -827,10 +827,7 @@ class GazeShift(LightningModule):
         #scaler = StandardScaler()
         #features_calib_scaled = scaler.fit_transform(features_calib)
         pca = PCA(n_components=10)
-        #pca = joblib.load('/home/gilsh/temp/pca_model_' + side + '_10d.pkl')
 
-        # test_features_pca = pca.fit_transform(features_test)
-        # calib_features_pca = pca.transform(features_calib)
         calib_features_pca = pca.fit_transform(features_calib)
         test_features_pca = pca.transform(features_test)
         mds = MDS(n_components=2, random_state=42)
@@ -1196,10 +1193,6 @@ class GazeShift(LightningModule):
         print('on_validation_end called')
 
         self.validation_table = pd.DataFrame(self.validation_table_data)
-        #self.validation_table_ssl = pd.DataFrame(self.validation_table_ssl)
-        #self.validation_table.to_pickle('/home/gilsh/temp/dataframe_ce_vanilla_res_loss.pkl')
-        #return
-        #self.validation_table = pd.read_pickle('/home/gilsh/temp/ce_new.pkl')
         calib_type = 'per_person'
         if calib_type == 'person_agnostic':
             self.person_agnostic_calib()
@@ -1225,19 +1218,6 @@ class GazeShift(LightningModule):
     def variational_embedding_att(self, images):
         encoded_gaze = self.gaze_encoder(images)
         encoded_eyeid = self.eyeid_encoder(images)
-        #gil
-        # pos_emb = self.pos_enc_2d(encoded_eyeid)
-        # encoded_eyeid = encoded_eyeid + pos_emb
-
-        # mu_left = self.fc_mean(encoded.squeeze(2).squeeze(2))
-        # log_var_left = self.fc_log_var(encoded.squeeze(2).squeeze(2))
-        # z = self.reparameterize(mu_left, log_var_left)
-        # B, C, H, W = encoded_eyeid.shape
-        # encoded_eyeid = encoded_eyeid.permute(2, 3, 0, 1).reshape(H * W, B, C)
-        # encoded_gaze = encoded_gaze.unsqueeze(-1)
-        # encoded_gaze = encoded_gaze.permute(2, 0, 1)
-        #out = self.decoder_2d(encoded_eyeid, encoded_gaze)
-
 
         return encoded_gaze, encoded_eyeid
 
@@ -1245,9 +1225,6 @@ class GazeShift(LightningModule):
     def variational_embedding(self, images):
         encoded_gaze = self.gaze_encoder(images)
         encoded_eyeid = self.eyeid_encoder(images)
-        # mu_left = self.fc_mean(encoded.squeeze(2).squeeze(2))
-        # log_var_left = self.fc_log_var(encoded.squeeze(2).squeeze(2))
-        # z = self.reparameterize(mu_left, log_var_left)
 
         return encoded_gaze, encoded_eyeid
 
@@ -1704,8 +1681,6 @@ class GazeShift(LightningModule):
 
         self.log('loss_train', loss, on_step=True, on_epoch=True,
                  sync_dist=True)
-        # self.log('loss_train_kld', kld, on_step=True, on_epoch=True,
-        #          sync_dist=True)
         return loss
 
     def configure_optimizers(self):

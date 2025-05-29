@@ -49,9 +49,6 @@ class VRGazeSinglePersonDataset(Dataset):
             self.image_files_right = sorted(glob(data_dir_root + '/*R*.png'))
             assert len(self.image_files_left) == len(self.image_files_right)
 
-        #torchvision.transforms.Grayscale(num_output_channels=3)
-        #gil = test no random crop
-        #is_train = False
         self.is_train = (stage == 'train')
         if self.is_train:
             self.transform = self.transform_train

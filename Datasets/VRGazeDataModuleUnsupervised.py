@@ -295,11 +295,6 @@ class VRGazeDataModuleUnsupervised(pl.LightningDataModule):
             self.validation_set_ssl = self.validation_set_supervised
 
 
-        # self.training_set_ssl = self.training_set_ssl.sample(frac=0.01)
-        # self.validation_set_ssl = self.validation_set_ssl.sample(frac=0.01)
-
-        #Gil - validation now contain both stationary and dynamic
-        #self.validation_set = self.validation_set[self.validation_set['is_stationary'] == 1.0]
         self.training_set_ssl.reset_index(inplace=True, drop=True)
         self.validation_set_ssl.reset_index(inplace=True, drop=True)
         self.validation_set_supervised.reset_index(inplace=True, drop=True)
@@ -377,9 +372,7 @@ class VRGazeDataModuleUnsupervised(pl.LightningDataModule):
             #random sampling
             self.train_data_for_person = all_data.sample(n=self.person_training_set_size)
 
-        #gil - all validation data
         self.val_data_for_person = all_data.drop(self.train_data_for_person.index)
-        #self.val_data_for_person = all_data
 
         pass
 
