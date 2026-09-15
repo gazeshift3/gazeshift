@@ -45,88 +45,6 @@ class PositionalEncoding2D(nn.Module):
 
 
 
-# class PositionalEncoding2D(nn.Module):
-#     """
-#     2D Sinusoidal Positional Encoding for image patches.
-#
-#     Args:
-#         d_model: Embedding dimension (must be even).
-#         height:  Height of the 2D grid.
-#         width:   Width of the 2D grid.
-#
-#     Usage:
-#         x shape: (B, d_model, H, W)
-#         out = x + pe, where pe has shape (1, d_model, H, W)
-#     """
-#
-#     def __init__(self, d_model, height, width):
-#         super().__init__()
-#         if d_model % 2 != 0:
-#             raise ValueError("d_model must be even for 2D positional encoding.")
-#
-#         # Create a buffer so it's not trainable
-#         pe = torch.zeros(d_model, height, width)  # (d_model, H, W)
-#
-#         # d_model is split into d_model/2 for Y, d_model/2 for X
-#         d_model_half = d_model // 2
-#
-#         # Each half is further split into sin/cos pairs:
-#         # so we only need d_model_half/2 "pairs" for y and x each
-#         # but typically you see it as loops over i in [0, d_model_half) stepping by 2.
-#
-#         # -- For Y (rows) --
-#         # shape: (height, )
-#         y_pos = torch.arange(height, dtype=torch.float).unsqueeze(1)  # (H, 1)
-#         div_term_y = torch.exp(
-#             torch.arange(0, d_model_half, 2).float()
-#             * -(math.log(10000.0) / d_model_half)
-#         )  # (d_model_half/2, )
-#
-#         # pe for y of shape: (d_model_half, height)
-#         # We'll broadcast sin/cos across each row
-#         for i in range(0, d_model_half, 2):
-#             i2 = i // 2  # index into div_term_y
-#             # sin
-#             pe[i, :, :] = torch.sin(y_pos * div_term_y[i2]).transpose(0, 1)
-#             # cos
-#             pe[i + 1, :, :] = torch.cos(y_pos * div_term_y[i2]).transpose(0, 1)
-#
-#         # -- For X (columns) --
-#         # shape: (width, )
-#         x_pos = torch.arange(width, dtype=torch.float).unsqueeze(1)  # (W, 1)
-#         div_term_x = torch.exp(
-#             torch.arange(0, d_model_half, 2).float()
-#             * -(math.log(10000.0) / d_model_half)
-#         )  # (d_model_half/2, )
-#
-#         # pe for x of shape: (d_model_half, width)
-#         # We'll broadcast sin/cos across each column, but must offset the index by d_model_half
-#         for i in range(0, d_model_half, 2):
-#             i2 = i // 2
-#             # sin
-#             pe[d_model_half + i, :, :] = torch.sin(x_pos * div_term_x[i2]).transpose(0, 1)
-#             # cos
-#             pe[d_model_half + i + 1, :, :] = torch.cos(x_pos * div_term_x[i2]).transpose(0, 1)
-#
-#         # shape is (d_model, H, W)
-#         pe = pe.unsqueeze(0)  # (1, d_model, H, W)
-#         self.register_buffer('pe', pe)
-#
-#     def forward(self, x: torch.Tensor) -> torch.Tensor:
-#         """
-#         Add 2D positional embeddings to the input feature map.
-#
-#         x shape: (B, d_model, H, W)
-#         returns: (B, d_model, H, W)
-#         """
-#         # Make sure the spatial dims match
-#         _, _, H, W = x.shape
-#         peH, peW = self.pe.shape[-2], self.pe.shape[-1]
-#         if (H != peH) or (W != peW):
-#             raise ValueError(
-#                 f"PositionalEncoding2D mismatch: Input is {H}x{W}, but PE is {peH}x{peW}."
-#             )
-#         return x + self.pe  # broadcast over batch
 
 
 class TransformerDecoderLayer(nn.Module):
@@ -769,8 +687,8 @@ class GazeShift(LightningModule):
     def training_validation_step_supervised(self, x):
         gaze_labels, left_images, right_images, label = x
 
-        gaze_left, left_eyeid = self.variational_embedding_att(left_images, is_left=True)
-        gaze_right, right_eyeid = self.variational_embedding_att(right_images, is_left=False)
+        gaze_left, left_eyeid = self.variational_embedding_att(left_images)
+        gaze_right, right_eyeid = self.variational_embedding_att(right_images)
 
         z_dim = gaze_left.shape[1]
         #gaze_dim = 5
@@ -1382,8 +1300,8 @@ class GazeShift(LightningModule):
     def cross_encoder_loss_att(self, x):
         gaze_labels, left_images, right_images, label = x
 
-        gaze_left, eye_id_left = self.variational_embedding_att(left_images, is_left=True)
-        gaze_right, eye_id_right = self.variational_embedding_att(right_images, is_left=False)
+        gaze_left, eye_id_left = self.variational_embedding_att(left_images)
+        gaze_right, eye_id_right = self.variational_embedding_att(right_images)
 
 
         #       z_dim = z_left.shape[1]

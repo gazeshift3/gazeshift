@@ -86,7 +86,7 @@ def main(args):
         seed_everything(args.seed)
 
     use_wandb = args.wandb and not isdebugging()
-    #use_wandb = True
+    use_wandb = False
 
     # Check whether dump_path exists and create one if not existing.
     output_path = os.path.join(args.experiment, '-'.join([args.run,datetime.now().strftime("%Y%m%d-%H%M%S")]))
@@ -97,25 +97,10 @@ def main(args):
 
     model = GazeShift(args)
     monitor = 'val_error_after_calib'
-    # input = torch.rand(1, args.channels, args.input_height, args.input_width)
-    # prepare_model_for_android(model, input, '/tmp/')
-    # if 1:
-    #     input = torch.rand(1, args.channels, args.input_height, args.input_width)
-    #     flops = FlopCountAnalysis(model, (input, input))
-    #     table_both_stage = flop_count_table(flops)
-    #     with open(os.path.join(output_path, 'flop_count.txt'), 'w') as f:
-    #         f.write(table_both_stage)
-    #
-    #     onnx_file_path = os.path.join(output_path, 'model.onnx')
-    #     torch.onnx.export(model, (input, input), onnx_file_path, verbose=True,
-    #                       opset_version=10)
     data = VRGazeDataModuleUnsupervised(args)
 
     mode = 'min'
     save_top_k = 3
-    # checkpoint_callback = ModelCheckpoint(dirpath=output_path, save_last=True,
-    #                                       save_top_k=save_top_k, monitor=monitor, mode=mode,
-    #                                       verbose=True)
 
     checkpoint_callback = ModelCheckpoint(dirpath=output_path, save_last=True,verbose=True, monitor=monitor,
                                           mode=mode, save_top_k=save_top_k)
@@ -124,26 +109,8 @@ def main(args):
     csv_logger = CSVLogger(save_dir=output_path, name='result')
     my_loggers = [csv_logger]
     use_neptune = False
+
     exp_name = os.path.basename(output_path)
-    if use_wandb and use_neptune:
-
-        neptune_logger = NeptuneLogger(
-            project="samsung/sgaze",
-            api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vbmVwdHVuZS1zcnYudHJhbnNjaGlwLmNvbSIsImFwaV91cmwiOiJodHRwczovL25lcHR1bmUtc3J2LnRyYW5zY2hpcC5jb20iLCJhcGlfa2V5IjoiNmFiNDU5OTgtZTY3Mi00YzMwLThlNmMtOWVhZTRjMDgyYmM0In0=",
-            name=exp_name
-        )
-        my_loggers.append(neptune_logger)
-        # neptune_logger = NeptuneLogger(
-        #     project="samsung/sgaze",
-        #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vbmVwdHVuZS1zcnYudHJhbnNjaGlwLmNvbSIsImFwaV91cmwiOiJodHRwczovL25lcHR1bmUtc3J2LnRyYW5zY2hpcC5jb20iLCJhcGlfa2V5IjoiNmFiNDU5OTgtZTY3Mi00YzMwLThlNmMtOWVhZTRjMDgyYmM0In0=",,
-        #     tags=[exp_name])
-
-    if use_wandb:
-
-        wandb_logger = WandbLogger(project='sgaze', entity=args.wandb_entity, config=args, name=exp_name,
-                               id=exp_name,
-                               save_dir='/home/gilsh/Gaze/sgaze/experiments/wandb', save_code=True)
-        my_loggers.append(wandb_logger)
 
     ckpt_path = args.ckpt_path if args.ckpt_path else None
     if ckpt_path and args.person_id_calib:

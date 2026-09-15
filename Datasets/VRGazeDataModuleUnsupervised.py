@@ -401,23 +401,13 @@ class VRGazeDataModuleUnsupervised(pl.LightningDataModule):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit":
             self.ts_dataset_train = VRGazeDatasetUnsupervised(self.hparams.args, self.data_dir, self.training_set_ssl,stage='train')
-            #self.ts_dataset_val_ssl = TSDatasetSelfSupervision(self.hparams.args, self.data_dir, self.validation_set_ssl,stage='validate')
             self.ts_dataset_val_supervised = VRGazeSinglePersonDataset(self.hparams.args, self.data_dir,
                                                                self.validation_set_supervised, stage='val')
 
 
-        # Assign test dataset for use in dataloader(s)
-        # if stage == "test":
-        #     pass
-        #     #self.mnist_test = MNIST(self.data_dir, train=False, transform=self.transform)
-        #
-        # if stage == "validate":
-        #     self.ts_dataset_val_ssl = TSDatasetSelfSupervision(self.hparams.args, self.data_dir, self.validation_set_ssl,stage='validate')
-        #     self.ts_dataset_val_supervised = TSSinglePersonDataset(self.hparams.args, self.data_dir,
-        #                                                        self.validation_set_supervised, stage='validate')
-        #
-        # if stage == "predict":
-        #     self.ts_dataset_predict = TSDatasetSelfSupervision(self.hparams.args, self.hparams.args.input_dir, stage='predict')
+        if stage == "validate":
+            self.ts_dataset_val_supervised = VRGazeSinglePersonDataset(self.hparams.args, self.data_dir,
+                                                               self.validation_set_supervised, stage='val')
 
 
     def train_dataloader(self):
