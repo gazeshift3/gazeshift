@@ -45,88 +45,6 @@ class PositionalEncoding2D(nn.Module):
 
 
 
-# class PositionalEncoding2D(nn.Module):
-#     """
-#     2D Sinusoidal Positional Encoding for image patches.
-#
-#     Args:
-#         d_model: Embedding dimension (must be even).
-#         height:  Height of the 2D grid.
-#         width:   Width of the 2D grid.
-#
-#     Usage:
-#         x shape: (B, d_model, H, W)
-#         out = x + pe, where pe has shape (1, d_model, H, W)
-#     """
-#
-#     def __init__(self, d_model, height, width):
-#         super().__init__()
-#         if d_model % 2 != 0:
-#             raise ValueError("d_model must be even for 2D positional encoding.")
-#
-#         # Create a buffer so it's not trainable
-#         pe = torch.zeros(d_model, height, width)  # (d_model, H, W)
-#
-#         # d_model is split into d_model/2 for Y, d_model/2 for X
-#         d_model_half = d_model // 2
-#
-#         # Each half is further split into sin/cos pairs:
-#         # so we only need d_model_half/2 "pairs" for y and x each
-#         # but typically you see it as loops over i in [0, d_model_half) stepping by 2.
-#
-#         # -- For Y (rows) --
-#         # shape: (height, )
-#         y_pos = torch.arange(height, dtype=torch.float).unsqueeze(1)  # (H, 1)
-#         div_term_y = torch.exp(
-#             torch.arange(0, d_model_half, 2).float()
-#             * -(math.log(10000.0) / d_model_half)
-#         )  # (d_model_half/2, )
-#
-#         # pe for y of shape: (d_model_half, height)
-#         # We'll broadcast sin/cos across each row
-#         for i in range(0, d_model_half, 2):
-#             i2 = i // 2  # index into div_term_y
-#             # sin
-#             pe[i, :, :] = torch.sin(y_pos * div_term_y[i2]).transpose(0, 1)
-#             # cos
-#             pe[i + 1, :, :] = torch.cos(y_pos * div_term_y[i2]).transpose(0, 1)
-#
-#         # -- For X (columns) --
-#         # shape: (width, )
-#         x_pos = torch.arange(width, dtype=torch.float).unsqueeze(1)  # (W, 1)
-#         div_term_x = torch.exp(
-#             torch.arange(0, d_model_half, 2).float()
-#             * -(math.log(10000.0) / d_model_half)
-#         )  # (d_model_half/2, )
-#
-#         # pe for x of shape: (d_model_half, width)
-#         # We'll broadcast sin/cos across each column, but must offset the index by d_model_half
-#         for i in range(0, d_model_half, 2):
-#             i2 = i // 2
-#             # sin
-#             pe[d_model_half + i, :, :] = torch.sin(x_pos * div_term_x[i2]).transpose(0, 1)
-#             # cos
-#             pe[d_model_half + i + 1, :, :] = torch.cos(x_pos * div_term_x[i2]).transpose(0, 1)
-#
-#         # shape is (d_model, H, W)
-#         pe = pe.unsqueeze(0)  # (1, d_model, H, W)
-#         self.register_buffer('pe', pe)
-#
-#     def forward(self, x: torch.Tensor) -> torch.Tensor:
-#         """
-#         Add 2D positional embeddings to the input feature map.
-#
-#         x shape: (B, d_model, H, W)
-#         returns: (B, d_model, H, W)
-#         """
-#         # Make sure the spatial dims match
-#         _, _, H, W = x.shape
-#         peH, peW = self.pe.shape[-2], self.pe.shape[-1]
-#         if (H != peH) or (W != peW):
-#             raise ValueError(
-#                 f"PositionalEncoding2D mismatch: Input is {H}x{W}, but PE is {peH}x{peW}."
-#             )
-#         return x + self.pe  # broadcast over batch
 
 
 class TransformerDecoderLayer(nn.Module):
@@ -224,7 +142,6 @@ class TransformerDecoderLayer(nn.Module):
         )
 
         #plt.imshow(sa_att_weights[0, 0, :].cpu().detach().reshape(10, 10).numpy(), cmap='gray')
-        #self.att_maps = sa_att_weights.detach().sum(dim=1)
         self.att_maps = sa_att_weights.detach().sum(dim=1)
         # Residual connection + layer normalization
         tgt = tgt + self.dropout(x2)
@@ -381,8 +298,8 @@ class TransformerDecoder(nn.Module):
                 memory_key_padding_mask=memory_key_padding_mask
             )
             att_maps.append(layer.att_maps.unsqueeze(1))
-        att_maps = torch.cat(att_maps, dim=1).mean(dim=1)
-        #att_maps = torch.cat(att_maps).mean(dim=1)
+
+        att_maps = torch.cat(att_maps).mean(dim=1)
         #output = output + tgt
         #output = output.reshape(output.shape[0], -1)
         #output = self.reduce_linear(output).unsqueeze(1)
@@ -691,31 +608,46 @@ class GazeShift(LightningModule):
         self.save_hyperparameters()  # sets self.hparams
         self.params = self.hparams['hparams']
         args = self.hparams['hparams']
-        #self.cvm_vae_negative_margin = args.cvm_vae_negative_margin
+        self.cvm_vae_negative_margin = args.cvm_vae_negative_margin
         self.gamma = 1.0
-        self.gaze_dim = self.params.gaze_dim
+        bottleneckLayerDetails = [
+            (1, 4, 1, 2),
+            (6, 8, 1, 2),
+            (6, 16, 1, 2),
+            (6, 32, 1, 2),
+            (6, 48, 1, 2),
+            (6, 64, 1, 2),
+        ]
+        self.gaze_dim = 30
         self.res_loss_weight = 0.0
-        # self.fc_mean = torch.nn.Linear(self.params.backbone_feature_size, self.params.backbone_feature_size)
-        # self.fc_log_var = torch.nn.Linear(self.params.backbone_feature_size, self.params.backbone_feature_size)
-        # self.projection = torch.nn.Linear(self.params.backbone_feature_size, 2)
+        self.fc_mean = torch.nn.Linear(self.params.backbone_feature_size, self.params.backbone_feature_size)
+        self.fc_log_var = torch.nn.Linear(self.params.backbone_feature_size, self.params.backbone_feature_size)
+        self.projection = torch.nn.Linear(self.params.backbone_feature_size, 2)
         self.error_list = []
         d_model = 256
         self.gaze_encoder = GazeEncoder(self.gaze_dim)
+        #self.gaze_encoder = GazeEncoder(d_model)
         self.eyeid_encoder = EyeIdentityEncoder(128 - self.gaze_dim)
 
-#        self.pos_enc_2d = PositionalEncoding2D(C=d_model, N=10)
+        self.pos_enc_2d = PositionalEncoding2D(C=d_model, N=10)
         self.att = TransformerDecoder(
             d_model=d_model,
             nhead=1,
             num_layers=1,
             dim_feedforward=128,
-            dropout=0.0,
-            dgaze=self.gaze_dim
+            dropout=0.0
         )
+        self.decoder_2d = Appearance2ImageDecoder()
+
+        self.vae = VAE(self.params)
         self.backbone_feaure_size = self.params.backbone_feature_size
 
         self.channels = 1
         self.decoder = Decoder(latent_dim=d_model)
+        self.alpha = torch.tensor(args.alpha)
+        self.margin = torch.tensor(args.triplet_loss_margin)
+        self.zero = torch.tensor(0.0)
+        #self.load_from_checkpoint(hparams.ckpt_path, strict=False)
         if hparams.ckpt_path != '':
             self.load_state_dict(torch.load(hparams.ckpt_path, map_location=self.device)['state_dict'], strict=True)
         elif hparams.vae_path != '':
@@ -724,11 +656,15 @@ class GazeShift(LightningModule):
             #copy the weights from vae to contrastive encoder
         else:
             pass
+#            print('apply init weights')
+#            self.encoder.apply(init_weights)
 
         #Freeze vae
-        # for param in self.vae.parameters():
-        #     param.requires_grad = False
+        for param in self.vae.parameters():
+            param.requires_grad = False
 
+        # for param in self.parameters():
+        #     param.requires_grad = False
 
 
     def reparameterize(self, mu, log_var):
@@ -754,6 +690,14 @@ class GazeShift(LightningModule):
         gaze_left, left_eyeid = self.variational_embedding_att(left_images)
         gaze_right, right_eyeid = self.variational_embedding_att(right_images)
 
+        z_dim = gaze_left.shape[1]
+        #gaze_dim = 5
+        #eye_id_dim = z_dim - self.gaze_dim
+        # gaze_left, eye_id_left = torch.split(z_left, [gaze_dim, eye_id_dim], dim=1)
+        # gaze_right, eye_id_right = torch.split(z_right, [gaze_dim, eye_id_dim], dim=1)
+
+        #gaze_left, eye_id_left = torch.split(mu_left, [self.gaze_dim, eye_id_dim], dim=1)
+        #gaze_right, eye_id_right = torch.split(mu_right, [self.gaze_dim, eye_id_dim], dim=1)
 
         gaze_lefts = gaze_left.cpu().float().numpy()
         gaze_rights = gaze_right.cpu().float().numpy()
@@ -800,7 +744,10 @@ class GazeShift(LightningModule):
         #scaler = StandardScaler()
         #features_calib_scaled = scaler.fit_transform(features_calib)
         pca = PCA(n_components=10)
+        #pca = joblib.load('/home/gilsh/temp/pca_model_' + side + '_10d.pkl')
 
+        # test_features_pca = pca.fit_transform(features_test)
+        # calib_features_pca = pca.transform(features_calib)
         calib_features_pca = pca.fit_transform(features_calib)
         test_features_pca = pca.transform(features_test)
         mds = MDS(n_components=2, random_state=42)
@@ -1166,6 +1113,10 @@ class GazeShift(LightningModule):
         print('on_validation_end called')
 
         self.validation_table = pd.DataFrame(self.validation_table_data)
+        #self.validation_table_ssl = pd.DataFrame(self.validation_table_ssl)
+        #self.validation_table.to_pickle('/home/gilsh/temp/dataframe_ce_vanilla_res_loss.pkl')
+        #return
+        #self.validation_table = pd.read_pickle('/home/gilsh/temp/ce_new.pkl')
         calib_type = 'per_person'
         if calib_type == 'person_agnostic':
             self.person_agnostic_calib()
@@ -1191,6 +1142,19 @@ class GazeShift(LightningModule):
     def variational_embedding_att(self, images):
         encoded_gaze = self.gaze_encoder(images)
         encoded_eyeid = self.eyeid_encoder(images)
+        #gil
+        # pos_emb = self.pos_enc_2d(encoded_eyeid)
+        # encoded_eyeid = encoded_eyeid + pos_emb
+
+        # mu_left = self.fc_mean(encoded.squeeze(2).squeeze(2))
+        # log_var_left = self.fc_log_var(encoded.squeeze(2).squeeze(2))
+        # z = self.reparameterize(mu_left, log_var_left)
+        # B, C, H, W = encoded_eyeid.shape
+        # encoded_eyeid = encoded_eyeid.permute(2, 3, 0, 1).reshape(H * W, B, C)
+        # encoded_gaze = encoded_gaze.unsqueeze(-1)
+        # encoded_gaze = encoded_gaze.permute(2, 0, 1)
+        #out = self.decoder_2d(encoded_eyeid, encoded_gaze)
+
 
         return encoded_gaze, encoded_eyeid
 
@@ -1198,6 +1162,9 @@ class GazeShift(LightningModule):
     def variational_embedding(self, images):
         encoded_gaze = self.gaze_encoder(images)
         encoded_eyeid = self.eyeid_encoder(images)
+        # mu_left = self.fc_mean(encoded.squeeze(2).squeeze(2))
+        # log_var_left = self.fc_log_var(encoded.squeeze(2).squeeze(2))
+        # z = self.reparameterize(mu_left, log_var_left)
 
         return encoded_gaze, encoded_eyeid
 
@@ -1250,6 +1217,11 @@ class GazeShift(LightningModule):
                                       anchor_images,
                                       negative_images):
 
+        #H, W = 10, 10
+        #B, C = anchor_gaze_negative_eye_id.shape[1], anchor_gaze_negative_eye_id.shape[2]
+        # Reshape and permute the tensor
+        #anchor_gaze_negative_eye_id = anchor_gaze_negative_eye_id.reshape(H, W, B, C).permute(2, 0, 1, 3)
+        #negative_gaze_anchor_eye_id = negative_gaze_anchor_eye_id.reshape(H, W, B, C).permute(2, 0, 1, 3)
         att_maps_anchor_gaze_negative_eye_id = self.create_mask(att_maps_anchor_gaze_negative_eye_id)
         att_maps_negative_gaze_anchor_eye_id = self.create_mask(att_maps_negative_gaze_anchor_eye_id)
 
@@ -1302,6 +1274,11 @@ class GazeShift(LightningModule):
                                       anchor_images,
                                       positive_images):
 
+        #H, W = 10, 10
+        #B, C = positive_gaze_anchor_eye_id.shape[1], positive_gaze_anchor_eye_id.shape[2]
+        # Reshape and permute the tensor
+        #positive_gaze_anchor_eye_id = positive_gaze_anchor_eye_id.reshape(H, W, B, C).permute(2, 0, 1, 3)
+        #anchor_gaze_positive_eye_id = anchor_gaze_positive_eye_id.reshape(H, W, B, C).permute(2, 0, 1, 3)
         att_maps_positive_gaze_anchor_eye_id = self.create_mask(att_maps_positive_gaze_anchor_eye_id)
         att_maps_anchor_gaze_positive_eye_id = self.create_mask(att_maps_anchor_gaze_positive_eye_id)
 
@@ -1320,6 +1297,88 @@ class GazeShift(LightningModule):
         loss = (1 - self.res_loss_weight) * loss + self.res_loss_weight * res_loss
         return loss
 
+    def cross_encoder_loss_att(self, x):
+        gaze_labels, left_images, right_images, label = x
+
+        gaze_left, eye_id_left = self.variational_embedding_att(left_images)
+        gaze_right, eye_id_right = self.variational_embedding_att(right_images)
+
+
+        #       z_dim = z_left.shape[1]
+        # gaze_dim = 10
+        #        eye_id_dim = z_dim - self.gaze_dim
+        # if self.training:
+        #     gaze_left, eye_id_left = torch.split(z_left, [self.gaze_dim, eye_id_dim], dim=1)
+        #     gaze_right, eye_id_right = torch.split(z_right, [self.gaze_dim, eye_id_dim], dim=1)
+        # else:
+        #     gaze_left, eye_id_left = torch.split(mu_left, [self.gaze_dim, eye_id_dim], dim=1)
+        #     gaze_right, eye_id_right = torch.split(mu_right, [self.gaze_dim, eye_id_dim], dim=1)
+
+        batch_size = gaze_labels.shape[0]
+        index = self.generate_derangement(batch_size)
+
+        if random.random() < 0.5:
+            anchor_gaze = gaze_left
+            anchor_eye_id = eye_id_left
+            positive_gaze = gaze_right
+            positive_eye_id = eye_id_right
+            negative_gaze = gaze_left[index]
+            negative_eye_id = eye_id_left[index]
+            negative_images = left_images[index]
+            anchor_images = left_images
+            positive_images = right_images
+
+
+        else:
+            anchor_gaze = gaze_right
+            anchor_eye_id = eye_id_right
+            positive_gaze = gaze_left
+            positive_eye_id = eye_id_left
+            negative_gaze = gaze_right[index]
+            negative_eye_id = eye_id_right[index]
+            negative_images = right_images[index]
+            anchor_images = right_images
+            positive_images = left_images
+
+        # positive_gaze_anchor_eye_id, att_maps_positive_gaze_anchor_eye_id = self.att(anchor_eye_id, positive_gaze)
+        # anchor_gaze_positive_eye_id, att_maps_anchor_gaze_positive_eye_id = self.att(positive_eye_id, anchor_gaze)
+        anchor_gaze_negative_eye_id, att_maps_anchor_gaze_negative_eye_id = self.att(negative_eye_id, anchor_gaze)
+        negative_gaze_anchor_eye_id, att_maps_negative_gaze_anchor_eye_id = self.att(anchor_eye_id, negative_gaze)
+
+
+        #loss_gaze = torch.abs(positive_gaze - anchor_gaze).mean()
+#        loss_id = torch.abs(anchor_eye_id - negative_eye_id).mean()
+
+        loss_same_eye_different_gaze = self.loss_same_eye_different_gaze_att(anchor_gaze_negative_eye_id,
+                                                                             att_maps_anchor_gaze_negative_eye_id,
+                                                                         negative_gaze_anchor_eye_id,
+                                                                         att_maps_negative_gaze_anchor_eye_id,
+                                                                         anchor_images,
+                                                                         negative_images)
+
+        # loss_diff_eye_same_gaze = self.loss_diff_eye_same_gaze_att(positive_gaze_anchor_eye_id,
+        #                                                            att_maps_positive_gaze_anchor_eye_id,
+        #                                                        anchor_gaze_positive_eye_id,
+        #                                                        att_maps_anchor_gaze_positive_eye_id,
+        #                                                        anchor_images,
+        #                                                        positive_images)
+
+        #alpha = 1.0
+        #same_eye_dif_gaze_weight = 0.8
+        # ce_loss = (same_eye_dif_gaze_weight * loss_same_eye_different_gaze +
+        #            (1 - same_eye_dif_gaze_weight) * loss_diff_eye_same_gaze)
+        ce_loss = loss_same_eye_different_gaze
+        #loss_same_property = (loss_gaze + loss_id) / 2.0
+        #loss = alpha * ce_loss + (1 - alpha) * loss_gaze
+        loss = ce_loss
+        # kld_left = self.loss_kld(mu_left, log_var_left)
+        # kld_right = self.loss_kld(mu_right, log_var_right)
+
+        # kld = (kld_left + kld_right) / 2.0
+
+        # loss = loss * self.gamma + kld * (1 - self.gamma)
+
+        return loss
 
     def cross_encoder_loss_att_multi_person_batch(self, x):
         gaze_labels, image_l_1, image_r_1, image_l_2, image_r_2, label = x
@@ -1357,6 +1416,16 @@ class GazeShift(LightningModule):
 
         gaze_left, eye_id_left = self.variational_embedding(left_images)
         gaze_right, eye_id_right = self.variational_embedding(right_images)
+
+ #       z_dim = z_left.shape[1]
+        #gaze_dim = 10
+#        eye_id_dim = z_dim - self.gaze_dim
+        # if self.training:
+        #     gaze_left, eye_id_left = torch.split(z_left, [self.gaze_dim, eye_id_dim], dim=1)
+        #     gaze_right, eye_id_right = torch.split(z_right, [self.gaze_dim, eye_id_dim], dim=1)
+        # else:
+        #     gaze_left, eye_id_left = torch.split(mu_left, [self.gaze_dim, eye_id_dim], dim=1)
+        #     gaze_right, eye_id_right = torch.split(mu_right, [self.gaze_dim, eye_id_dim], dim=1)
 
         batch_size = gaze_labels.shape[0]
         index = self.generate_derangement(batch_size)
@@ -1421,6 +1490,10 @@ class GazeShift(LightningModule):
 
     def compute_triplet_loss_label_oracle(self, anchor, positive, negatives, anchor_gt, negative_gts):
 
+        #compute the euclidean distance between anchor to positive
+        #negatives = torch.cat(negatives).reshape_as(anchor_gt)
+        # negatives = torch.cat(negatives)
+        # negative_gts = torch.cat(negative_gts)
         batch_size = anchor.shape[0]
         d_ap = torch.norm(anchor - positive, dim=1)
         sum_negatives = torch.zeros_like(d_ap)
@@ -1486,6 +1559,61 @@ class GazeShift(LightningModule):
         final = torch.cat((pitch,yaw),dim=1)
         return final
 
+    def oracle_static_labels_loss(self, x):
+        gaze_labels, left_images, right_images, label = x
+
+        gaze_labels_2d = self.from_3D_to_yaw_pitch(gaze_labels)
+
+        z_proj_left, z_left, mu_left, log_var_left,_ = self.variational_embedding(left_images, vae=False)
+        z_proj_right, z_right, mu_right, log_var_right,_ = self.variational_embedding(right_images, vae=False)
+
+        batch_size = gaze_labels.shape[0]
+        #index = self.generate_derangement(batch_size)
+
+        number_of_negatives = batch_size
+        indexes = []
+        negatives = []
+        negative_gts = []
+        for i in range(number_of_negatives):
+            indexes.append(self.generate_derangement(batch_size))
+
+        if random.random() < 0.5:
+            for i in range(number_of_negatives):
+                negatives.append(z_proj_left[indexes[i]])
+            anchor = z_proj_left
+            positive = z_proj_right
+            #negative = left_perm
+            #negative = left_perm
+
+        else:
+            for i in range(number_of_negatives):
+                negatives.append(z_proj_left[indexes[i]])
+            #right_perm = z_proj_right[index]
+            anchor = z_proj_right
+            positive = z_proj_left
+            #negative = right_perm
+
+        anchor_gt = gaze_labels_2d
+
+        for i in range(number_of_negatives):
+            negative_gts.append(gaze_labels_2d[indexes[i]])
+
+        negative_gts = torch.cat(negative_gts).reshape(number_of_negatives, batch_size, 2)
+        negatives = torch.cat(negatives).reshape(number_of_negatives, batch_size, 2)
+        # triplet_loss = (self.compute_triplet_loss(anchor, positive, negative) +
+        #                self.compute_triplet_loss(positive, anchor, negative)) / 2.0
+        #triplet_loss = self.compute_triplet_loss(anchor, positive, negative)
+        triplet_loss = (self.compute_triplet_loss_label_oracle(anchor, positive, negatives, anchor_gt, negative_gts)
+        + self.compute_triplet_loss_label_oracle(positive, anchor, negatives, anchor_gt, negative_gts)) / 2.0
+
+        kld_left = self.loss_kld(mu_left, log_var_left)
+        kld_right = self.loss_kld(mu_right, log_var_right)
+
+        kld = (kld_left + kld_right) / 2.0
+
+        loss = triplet_loss * self.gamma + kld * (1 - self.gamma)
+
+        return loss, kld
 
     def training_step(self, x):
 
@@ -1493,6 +1621,8 @@ class GazeShift(LightningModule):
 
         self.log('loss_train', loss, on_step=True, on_epoch=True,
                  sync_dist=True)
+        # self.log('loss_train_kld', kld, on_step=True, on_epoch=True,
+        #          sync_dist=True)
         return loss
 
     def configure_optimizers(self):
